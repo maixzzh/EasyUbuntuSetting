@@ -1,0 +1,62 @@
+-- ============================================================================
+--  Hyprland 侧配置片段 (Lua 配置写法)
+--  适用于使用 hyprland.lua 而非 hyprland.conf 的较新配置体系
+-- ----------------------------------------------------------------------------
+--  字段名对照自 /usr/share/hypr/stubs/hl.meta.lua, 已在 Hyprland 0.56 实测。
+--  不同版本字段可能有出入, 若报错请以本机 stub 文件为准:
+--      grep -A20 "class HL.WindowRuleSpec" /usr/share/hypr/stubs/hl.meta.lua
+-- ============================================================================
+
+
+-- ---------------------------------------------------------------------------
+--  [必需] 自启动
+-- ---------------------------------------------------------------------------
+--  hyprland.start 事件在 Hyprland 启动时触发一次。
+--  注意: 这个回调只在「启动」时跑, 重载配置 (hyprctl reload) 不会重复执行,
+--        所以不用担心 waybar 被重复拉起。
+hl.on("hyprland.start", function()
+    -- [强烈建议] polkit 认证代理 —— 见下方说明
+    -- hl.exec_cmd("lxpolkit")
+
+    -- [必需] 状态栏本体
+    hl.exec_cmd("waybar")
+end)
+
+
+-- ---------------------------------------------------------------------------
+--  为什么需要 polkit 代理
+-- ---------------------------------------------------------------------------
+--  图形化的网络设置 (nm-connection-editor) 在保存连接、连接新 WiFi 时需要
+--  polkit 授权, 而 polkit 代理就是负责弹「请输入密码」对话框的程序。
+--  GNOME / KDE 桌面自带代理, 但 Hyprland 不会自动拉起任何代理。
+--
+--  Ubuntu 上安装 (三选一):
+--      sudo apt install lxpolkit            # 最轻量, 推荐
+--      sudo apt install mate-polkit
+--      sudo apt install policykit-1-gnome
+--
+--  缺了它的表现是「静默失败」: 点保存没反应, 不报错, 极难排查。
+--
+--  ⚠ 一个坑: 如果你装的是 hyprpolkitagent (Hyprland 官方代理), 它自带一个
+--    systemd 用户服务。但那个服务的 WantedBy=graphical-session.target,
+--    而 Hyprland 默认不会激活 graphical-session.target —— 所以
+--    `systemctl --user enable hyprpolkitagent` 是没用的, 必须像上面那样
+--    在 Hyprland 启动时显式 start, 或者直接用它自带的二进制路径:
+--        hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
+
+
+-- ---------------------------------------------------------------------------
+--  [可选] KDE 面板浮窗规则
+-- ---------------------------------------------------------------------------
+--  仅当你把 waybar 的点击目标改成 KDE 面板 (plasmawindowed) 时才需要。
+--  本项目默认使用 Ubuntu 原生工具, 那些是普通窗口, 不需要此规则。
+--
+--  不加这条规则的话, 面板会以平铺方式打开, 占据半屏, 很难看。
+--
+-- hl.window_rule({
+--     name   = "kde-applet-float",
+--     match  = { class = "org.kde.plasmawindowed" },
+--     float  = true,          -- 浮窗而非平铺
+--     center = true,          -- 居中
+--     size   = "860 680",     -- 宽 高 (字符串, 空格分隔)
+-- })

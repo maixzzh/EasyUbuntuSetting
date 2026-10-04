@@ -1,0 +1,167 @@
+// ============================================================================
+//  Waybar · 「和风悬浮小药丸」 / Wafuu Floating Pills
+//  配色: 抹茶绿 #A2D1A7 · 墨绿文字 #3B4A36   樱花粉 #FFB7C5 · #D9556F
+//  风格: 每个模块独立成丸, 磨砂白 + 樱花描边 + 柔和投影
+//  目标: Ubuntu 24.10 / 25.x 及以上 (waybar >= 0.11)
+// ----------------------------------------------------------------------------
+//  ⚠ 两条硬性约束, 改配置前务必先读:
+//
+//  1) 图标一律写成 \uXXXX 转义, 不要直接粘贴 Nerd Font 字形字符。
+//     U+E000-U+F8FF 是 Unicode 私有使用区 (PUA), 不少编辑器、剪贴板、
+//     代码托管平台会在传输中把它悄悄吃掉, 图标会无声消失, 只剩空格,
+//     而且不报任何错。写成转义后文件是纯 ASCII, 任何环节都不会损坏。
+//     常用图标对照:  CPU=\uf4bc  内存=\uf2db  硬盘=\uf0a0  时钟=\uf017
+//                    WiFi=\uf1eb  音量=\uf028  电池=\uf240  电源=\uf011
+//
+//  2) format 串里绝对不能出现 < > 尖括号。
+//     Waybar 的文本走 Pango markup 渲染, 尖括号会被当成 HTML 标签,
+//     轻则终端刷警告, 重则整个模块不显示。要写就用 &lt; &gt; 转义。
+// ============================================================================
+{
+    "layer": "top",
+    "position": "top",
+    "height": 36,                 // 药丸高度基准
+    "spacing": 0,                 // 模块间距交给 CSS 的 margin 控制, 此处必须为 0
+    "margin-top": 6,              // 整条栏下移, 制造"悬浮"感
+    "margin-left": 10,
+    "margin-right": 10,
+    "exclusive": true,            // 设为 false 则窗口可以钻到药丸底下(真·悬浮)
+
+    // 模块排布: 左侧=工作区+系统监控, 中间=时钟, 右侧=网络/音量/电池/托盘/电源
+    "modules-left":   ["hyprland/workspaces", "hyprland/submap",
+                       "cpu", "memory", "custom/diskio"],
+    "modules-center": ["clock"],
+    "modules-right":  ["network", "pulseaudio", "battery", "tray", "custom/power"],
+
+    // ---------------------------------------------------------------- 工作区
+    // 需要 Hyprland 正在运行, 否则模块会静默消失(不会报错)
+    "hyprland/workspaces": {
+        "format": "{icon}",
+        "on-click": "activate",   // 左键切过去; 也可改成 "focus" 或 "close"
+        "all-outputs": false,
+        // 常驻占位: 始终显示 1-5 号, 不管有没有开。不想要就删掉这一行
+        "persistent-workspaces": { "*": 5 },
+        // 和风汉字数字。中日文字符不在私有区, 不受第 1 条约束。
+        // 需要 fonts-noto-cjk 提供字形, 没装会显示成方块
+        "format-icons": {
+            "1": "一", "2": "二", "3": "三", "4": "四", "5": "五",
+            "6": "六", "7": "七", "8": "八", "9": "九", "10": "十",
+            "default": "・"
+        }
+    },
+
+    // ------------------------------------------------------- 子映射(submap)
+    // 平时完全隐藏, 只有进入 resize / vim 之类的 submap 时才浮出来
+    "hyprland/submap": {
+        "format": "\uf11c {}",
+        "tooltip": false
+    },
+
+    // --------------------------------------------- 系统监控 (CPU / 内存 / 磁盘)
+    // ⚠ 这几个模块用到的占位符在不同 waybar 版本里支持程度不同。
+    //    本项目已在 waybar 0.15 上实测; 0.11~0.13 未逐项验证。
+    //    若某模块整体不显示, 用 `waybar -l debug` 看日志, 大概率是
+    //    "argument not found" —— 说明该占位符在此版本不存在, 删掉即可。
+    "cpu": {
+        "interval": 2,
+        "format": "\uf4bc  {usage}%",
+        "tooltip": true,
+        // 实测: {usage} / {avg_frequency} / {max_frequency} 可用
+        //       {load1} {load5} {load15} 不支持, 写了整个模块会报错
+        "tooltip-format": "CPU 占用  {usage}%\n平均频率  {avg_frequency} GHz\n最高频率  {max_frequency} GHz",
+        "states": { "warning": 60, "critical": 85 },
+        "on-click": "gnome-system-monitor"
+    },
+
+    "memory": {
+        "interval": 3,
+        "format": "\uf2db  {percentage}%",
+        "tooltip": true,
+        // 实测: {percentage} / {used} / {total} / {avail} 可用, {free} 不支持
+        "tooltip-format": "内存  {used:0.1f}G / {total:0.1f}G\n可用  {avail:0.1f}G",
+        "states": { "warning": 70, "critical": 90 },
+        "on-click": "gnome-system-monitor"
+    },
+
+    // 磁盘「读写速率」—— Waybar 内置的 disk 模块只有剩余空间, 没有 I/O 速度,
+    // 所以这里用自定义脚本读 /proc/diskstats 采样求差, 不依赖任何外部命令
+    "custom/diskio": {
+        "exec": "$HOME/.config/waybar/scripts/diskio.sh",
+        "return-type": "json",
+        "interval": 2,
+        "tooltip": true,
+        "on-click": "gnome-system-monitor"
+    },
+
+    // ------------------------------------------------------------------ 时钟
+    "clock": {
+        "format": "\uf017 {:%m-%d %H:%M}",
+        // {calendar} 是 waybar 内置的月历, 悬停即见
+        "tooltip-format": "<span size='small'>{:%Y年%m月%d日  %A}</span>\n<span size='small'>{calendar}</span>",
+        "on-click": "gnome-calendar",           // 没装 gnome-calendar 则无反应
+        "on-click-right": "sh -c 'date +%Y-%m-%d\\ %H:%M:%S | wl-copy'"
+    },
+
+    // ------------------------------------------------------------------ 网络
+    "network": {
+        "interval": 3,
+        "format-wifi": "\uf1eb  {essid}",
+        "format-ethernet": "\uf0ac  {ifname}",
+        "format-linked": "\uf0ac  {ifname}",
+        "format-disconnected": "\uf00c  未连接",
+        "tooltip-format-wifi": "{essid}  {signalStrength}%\n频率 {frequency} GHz · 地址 {ipaddr}",
+        "tooltip-format-ethernet": "{ifname}\n{ipaddr}/{cidr}",
+        "tooltip-format-disconnected": "未连接到任何网络",
+        // nm-connection-editor 由 network-manager-gnome 提供 (Ubuntu 官方源)
+        "on-click": "nm-connection-editor",
+        "on-click-right": "sh -c 'nmcli radio wifi toggle'"
+    },
+
+    // ------------------------------------------------------------------ 音量
+    "pulseaudio": {
+        "format": "{icon}  {volume}%",
+        "format-muted": "\uf026  静音",
+        "format-source": "\uf131  {volume}%",
+        "format-source-muted": "\uf131  麦克风已关",
+        "format-icons": {
+            "default": ["\uf026", "\uf027", "\uf028"]   // 音量 低 / 中 / 高
+        },
+        "tooltip-format": "{desc}  {volume}%",
+        "on-click": "pavucontrol",                     // Ubuntu 官方源
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        // 滚轮调音量。注意: 需要 pipewire 或 pulseaudio 提供 wpctl/pactl
+        "on-scroll-up": "wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+",
+        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+    },
+
+    // ------------------------------------------------------------------ 电池
+    "battery": {
+        "interval": 30,
+        "states": {
+            "warning": 30,        // <=30% 药丸变琥珀色 #FFB347
+            "critical": 15        // <=15% 变品红 #FF69B4 并闪烁
+        },
+        "format": "{icon}  {capacity}%",
+        "format-charging": "\uf1e6  {capacity}%",
+        "format-plugged": "\uf1e6  {capacity}%",
+        "format-full": "\uf240  {capacity}%",
+        "format-icons": ["\uf244", "\uf243", "\uf242", "\uf241", "\uf240"],
+        "tooltip-format": "{timeTo}  ·  {capacity}%  ·  {power}W"
+    },
+
+    // -------------------------------------------------------------- 系统托盘
+    "tray": {
+        "icon-size": 15,
+        "spacing": 8,
+        "show-passive-items": false
+    },
+
+    // ------------------------------------------------------------------ 电源
+    // wlogout 在 Ubuntu universe 源里 (wlogout 1.2.2+)
+    "custom/power": {
+        "format": "\uf011",
+        "tooltip-format": "电源菜单 (右键锁屏)",
+        "on-click": "wlogout",
+        "on-click-right": "loginctl lock-session"
+    }
+}

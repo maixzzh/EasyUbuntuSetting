@@ -1,0 +1,270 @@
+/* ============================================================================
+ *  Waybar · 「和风悬浮小药丸」 / Wafuu Floating Pills
+ *  抹茶绿 #A2D1A7 · 墨绿文字 #3B4A36 · 深抹茶 #4E7A52
+ *  樱花粉 #FFB7C5 · #D9556F(文字) · 描边 rgba(214,122,145,.85)
+ * ----------------------------------------------------------------------------
+ *  ⚠ GTK3 CSS 注意事项 (踩过的坑, 别改坏):
+ *    1. 不支持 CSS 变量 var() / :root —— 颜色必须写字面量, 写了会让整段失效
+ *    2. 不支持 flex/grid, 布局靠 margin + padding
+ *    3. box-shadow 不能参与 transition 动画 (GTK 限制), 会瞬变, 属正常
+ *    4. 改完不用重启 waybar, 存盘即热重载; 出错看 `waybar -l debug`
+ * ========================================================================= */
+
+* {
+    /* Hack Nerd Font 是本机唯一已装的 Nerd Font, 后面两个是兜底 */
+    font-family: "Hack Nerd Font", "MesloLGS NF", "Noto Sans CJK JP", sans-serif;
+    font-size: 13px;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* 整条栏本身完全透明 —— 只有药丸可见 */
+window#waybar {
+    background: transparent;
+    background-color: transparent;
+    color: #3B4A36;
+}
+
+/* ==========================================================================
+ *  1. 药丸基底 —— 所有模块共用的磨砂白胶囊
+ * ========================================================================= */
+#workspaces,
+#submap,
+#clock,
+#cpu,
+#memory,
+#custom-diskio,
+#network,
+#pulseaudio,
+#battery,
+#tray,
+#custom-power {
+    background-color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(214, 122, 145, 0.85);
+    border-radius: 18px;
+    box-shadow: 0px 2px 5px rgba(220, 180, 190, 0.3);
+    color: #3B4A36;
+    margin: 3px 4px;
+    padding: 0 12px;
+    font-weight: 600;
+}
+
+/* 悬停: 樱花粉 + 白字 */
+#workspaces:hover,
+#submap:hover,
+#clock:hover,
+#cpu:hover,
+#memory:hover,
+#custom-diskio:hover,
+#network:hover,
+#pulseaudio:hover,
+#battery:hover,
+#tray:hover,
+#custom-power:hover {
+    background-color: rgba(255, 192, 203, 0.8);
+    color: #FFFFFF;
+    border-color: rgba(198, 92, 118, 0.9);
+    box-shadow: 0px 3px 8px rgba(255, 145, 164, 0.35);
+}
+
+/* ==========================================================================
+ *  2. 工作区 —— 抹茶绿小豆子
+ * ========================================================================= */
+#workspaces {
+    padding: 0 7px;
+}
+
+#workspaces button {
+    background-color: rgba(162, 209, 167, 0.38);   /* 浅绿: 默认 */
+    color: #3B4A36;
+    border-radius: 14px;
+    margin: 4px 3px;
+    padding: 0 8px;
+    min-width: 16px;
+    min-height: 20px;
+    box-shadow: none;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* 空工作区: 几乎透明, 只留一点影子 */
+#workspaces button.empty {
+    background-color: rgba(162, 209, 167, 0.16);
+    color: rgba(59, 74, 54, 0.6);
+}
+
+/* 当前工作区: 抹茶绿实心 + 白字 */
+#workspaces button.active {
+    background-color: #A2D1A7;
+    color: #FFFFFF;
+    box-shadow: 0px 1px 4px rgba(122, 168, 128, 0.55);
+}
+
+/* 紧急(urgent): 樱花粉 + 呼吸闪烁 */
+#workspaces button.urgent {
+    background-color: #FF91A4;
+    color: #FFFFFF;
+    animation: breathe 0.9s ease-in-out infinite alternate;
+}
+
+/* 悬停优先级要压在 .active 之下, 否则当前工作区也会被染粉 */
+#workspaces button:hover {
+    background-color: rgba(255, 183, 197, 0.85);
+    color: #FFFFFF;
+}
+
+#workspaces button.active:hover {
+    background-color: #8FC495;                     /* 更深的抹茶绿 */
+    color: #FFFFFF;
+}
+
+/* ==========================================================================
+ *  3. 各模块个性
+ * ========================================================================= */
+#clock {
+    color: #D9556F;                                /* 樱花粉(加深, 保证白底可读) */
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+#network.disconnected {
+    background-color: rgba(255, 145, 164, 0.35);
+    border-color: rgba(174, 53, 80, 0.8);
+    color: #AE3550;
+}
+
+#pulseaudio.muted {
+    background-color: rgba(162, 209, 167, 0.4);
+    color: rgba(59, 74, 54, 0.8);
+}
+
+/* ==========================================================================
+ *  系统监控负载分级: 磨砂白 → 琥珀 #FFB347 → 品红 #FF69B4
+ *  刻意不加闪烁 —— CPU/磁盘持续高负载时一直闪会很烦, 变色足够提示了
+ * ========================================================================= */
+#cpu.warning,
+#memory.warning,
+#custom-diskio.warning {
+    background-color: rgba(255, 179, 71, 0.88);
+    border-color: rgba(255, 179, 71, 1);
+    color: #FFFFFF;
+}
+
+#cpu.critical,
+#memory.critical,
+#custom-diskio.critical {
+    background-color: #FF69B4;
+    border-color: #FF69B4;
+    color: #FFFFFF;
+}
+
+/* 磁盘读写数字等宽, 否则跳动时药丸宽度会一直抖 */
+#custom-diskio {
+    font-feature-settings: "tnum";
+}
+
+/* ==========================================================================
+ *  4. 电池状态: 低电量琥珀 → 严重品红闪烁
+ * ========================================================================= */
+#battery.warning:not(.charging) {
+    background-color: rgba(255, 179, 71, 0.88);    /* #FFB347 */
+    border-color: rgba(255, 179, 71, 1);
+    color: #FFFFFF;
+}
+
+#battery.critical:not(.charging) {
+    background-color: #FF69B4;
+    border-color: #FF69B4;
+    color: #FFFFFF;
+    animation: blink 0.7s steps(2, start) infinite;
+}
+
+#battery.charging,
+#battery.plugged {
+    color: #4E7A52;
+}
+
+/* ==========================================================================
+ *  5. 托盘 & 电源
+ * ========================================================================= */
+#tray {
+    padding: 0 10px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: rgba(255, 145, 164, 0.65);
+    border-radius: 10px;
+}
+
+#custom-power {
+    color: #D9556F;
+    font-size: 15px;
+    padding: 0 13px;
+}
+
+#custom-power:hover {
+    color: #FFFFFF;
+}
+
+/* submap 专用: 蜜桃色, 区别于普通模块 */
+#submap {
+    background-color: rgba(255, 183, 197, 0.55);
+    color: #4A1F29;
+    font-size: 12px;
+}
+
+/* ==========================================================================
+ *  6. 动画
+ * ========================================================================= */
+@keyframes blink {
+    to {
+        background-color: rgba(255, 255, 255, 0.92);
+        color: #FF69B4;
+        border-color: #FFB7C5;
+    }
+}
+
+@keyframes breathe {
+    from { box-shadow: 0px 0px 2px rgba(255, 145, 164, 0.4); }
+    to   { box-shadow: 0px 0px 10px rgba(255, 145, 164, 0.95); }
+}
+
+/* ==========================================================================
+ *  7. 弹出层: tooltip / 托盘右键菜单
+ * ========================================================================= */
+tooltip {
+    background-color: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(214, 122, 145, 0.85);
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(220, 180, 190, 0.4);
+}
+
+tooltip label {
+    color: #3B4A36;
+    padding: 4px 6px;
+}
+
+menu {
+    background-color: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(214, 122, 145, 0.85);
+    border-radius: 12px;
+    padding: 4px;
+}
+
+menu menuitem {
+    color: #3B4A36;
+    border-radius: 8px;
+    padding: 4px 8px;
+}
+
+menu menuitem:hover {
+    background-color: rgba(255, 192, 203, 0.8);
+    color: #FFFFFF;
+}
